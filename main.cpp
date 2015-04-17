@@ -66,12 +66,14 @@ struct AM {
         for( std::vector<complex_t>::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i ){
             const complex_t &IQ = *i;
 
-            double magnitude = IQ.imag() * IQ.imag() + IQ.real() * IQ.real();
+            double magnitude = std::norm(IQ);
             if( magnitude == 0 ){
                 continue;
             }
 
-            stream.collect_bit( magnitude < 0.8 ? 0 : 1 );
+            uint8_t bit = magnitude < 1 ? 0 : 1;
+
+            stream.collect_bit( bit );
 
             // printf( "%c", magnitude < 0.8 ? '_' : '-' );
             // fflush( stdout );
@@ -96,7 +98,7 @@ int main( int argc, char **argv )
         dev.open();
 
         dev.set_frequency( 13.56 * 1e6 );
-        dev.set_sample_rate( 20 * 1e6 );
+        dev.set_sample_rate( 8 * 1e6 );
         dev.set_amp_enabled( false );
         dev.set_lna_gain( 32 );
         dev.set_vga_gain( 30 );
