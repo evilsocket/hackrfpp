@@ -31,21 +31,50 @@
 #include <iostream>
 #include "hackrfpp.hpp"
 
+class bitstream {
+private:
+    uint8_t _nbit;
+    uint8_t _byte;
+
+    void reset() {
+        _nbit = 0;
+        _byte = 0;
+    }
+
+public:
+
+    bitstream() {
+        reset();
+    }
+
+    void collect_bit( uint8_t bit ) {
+        _byte |= ( bit << _nbit );
+        ++_nbit;
+
+        if( _nbit >= 8 ) {
+            printf( "%02x ", _byte );
+            fflush(stdout);
+            reset();
+        }
+    }
+};
+
 struct AM {
     void demodulate( const std::vector<complex_t>& data ) {
+        bitstream stream;
+
         for( std::vector<complex_t>::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i ){
             const complex_t &IQ = *i;
 
-            double magnitude = sqrt( IQ.real() * IQ.real() + IQ.imag() * IQ.imag() );
-
-            if( magnitude < 1.0 ){
-                printf( "%c", magnitude < 0.8 ? '_' : '-' );
-
+            double magnitude = IQ.imag() * IQ.imag() + IQ.real() * IQ.real();
+            if( magnitude == 0 ){
+                continue;
             }
-            else {
-                printf( " " );
-            }
-            fflush( stdout );
+
+            stream.collect_bit( magnitude < 0.8 ? 0 : 1 );
+
+            // printf( "%c", magnitude < 0.8 ? '_' : '-' );
+            // fflush( stdout );
         }
     }
 };
@@ -67,7 +96,7 @@ int main( int argc, char **argv )
         dev.open();
 
         dev.set_frequency( 13.56 * 1e6 );
-        dev.set_sample_rate( 8 * 1e6 );
+        dev.set_sample_rate( 20 * 1e6 );
         dev.set_amp_enabled( false );
         dev.set_lna_gain( 32 );
         dev.set_vga_gain( 30 );
