@@ -62,6 +62,8 @@ public:
 
     bool is_streaming() const;
 
+    const complex_t& lookup( uint16_t iq );
+
 protected:
 
     hackrf_device *_device;
@@ -161,6 +163,11 @@ HackRFPP<DEMOD>::~HackRFPP() {
 }
 
 template<class DEMOD>
+const complex_t& HackRFPP<DEMOD>::lookup( uint16_t iq ) {
+    return _lookup_table[ iq ];
+}
+
+template<class DEMOD>
 int HackRFPP<DEMOD>::rx_callback(hackrf_transfer *transfer) {
     HackRFPP *hrf = (HackRFPP *)transfer->rx_ctx;
 
@@ -170,7 +177,7 @@ int HackRFPP<DEMOD>::rx_callback(hackrf_transfer *transfer) {
 
         std::vector<complex_t> values( len );
         for( i = 0; i < len; ++i ){
-            values.push_back( hrf->_lookup_table[ p[i] ] );
+            values.push_back( hrf->lookup( p[i] ) );
         }
 
         hrf->_demodulator.demodulate(values);

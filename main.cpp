@@ -31,6 +31,8 @@
 #include <iostream>
 #include "hackrfpp.hpp"
 
+#define BUF_LEN (16 * 32 * 512)
+
 class bitstream {
 private:
     uint8_t _nbit;
@@ -50,7 +52,7 @@ public:
     void collect_bit( uint8_t bit ) {
         _byte |= ( bit << _nbit );
         ++_nbit;
-
+        // printf( "%d\n", _nbit );
         if( _nbit >= 8 ) {
             printf( "%02x ", _byte );
             fflush(stdout);
@@ -60,7 +62,7 @@ public:
 };
 
 struct AM {
-    void demodulate( const std::vector<complex_t>& data ) {
+    static void demodulate( const std::vector<complex_t>& data ) {
         bitstream stream;
 
         for( std::vector<complex_t>::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i ){
@@ -72,7 +74,7 @@ struct AM {
             }
 
             uint8_t bit = magnitude < 1 ? 0 : 1;
-
+        
             stream.collect_bit( bit );
 
             // printf( "%c", magnitude < 0.8 ? '_' : '-' );
@@ -93,24 +95,54 @@ int main( int argc, char **argv )
 {
     signal(SIGINT, signal_handler);
 
-    try
-    {
-        dev.open();
+    if( argc == 3 && strcmp( argv[1], "--file" ) == 0 ){
+        std::cout << "Using IQ file " << argv[2] << " as input." << std::endl;
 
-        dev.set_frequency( 13.56 * 1e6 );
-        dev.set_sample_rate( 8 * 1e6 );
-        dev.set_amp_enabled( false );
-        dev.set_lna_gain( 32 );
-        dev.set_vga_gain( 30 );
+        FILE *fp = fopen( argv[2], "rb" );
+        if( fp ){
+            uint8_t buffer[BUF_LEN] = {0};
 
-        dev.start();
+            while( !feof(fp) && fread( buffer, BUF_LEN, 1, fp ) == 1 ){
+                unsigned short *p = (unsigned short *)&buffer;
+                size_t i, len = BUF_LEN / sizeof(unsigned short);
 
-        while( dev.is_streaming() ) {
-            usleep(100);
+                std::vector<complex_t> values( len );
+                for( i = 0; i < len; ++i ){
+                    values.push_back( dev.lookup( p[i] ) );
+                }
+
+                AM::demodulate(values);
+            }
+
+            fclose(fp);
+        }
+        else {
+            std::cerr << "ERROR: Could not open file." << std::endl;
         }
     }
-    catch( const std::exception &e ) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
+    else {
+
+        std::cout << "Using HackRF device as input." << std::endl;
+
+        try
+        {
+            dev.open();
+
+            dev.set_frequency( 13.56 * 1e6 );
+            dev.set_sample_rate( 8 * 1e6 );
+            dev.set_amp_enabled( false );
+            dev.set_lna_gain( 32 );
+            dev.set_vga_gain( 30 );
+
+            dev.start();
+
+            while( dev.is_streaming() ) {
+                usleep(100);
+            }
+        }
+        catch( const std::exception &e ) {
+            std::cerr << "ERROR: " << e.what() << std::endl;
+        }
     }
 
     return 0;
