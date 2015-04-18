@@ -26,34 +26,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef IQLOOKUP_H
-#define IQLOOKUP_H
+#ifndef IQREADER_H
+#define IQREADER_H
 
-#include <complex>
+#include <vector>
 
-typedef std::complex<float> complex_t;
+#include "iqlookup.hpp"
 
-class iq_lookup {
+class iq_reader {
 protected:
 
-    complex_t _table[ 0xffff + 1 ];
+    iq_lookup _cache;
 
 public:
 
-    iq_lookup() {
-        const float scale = 1.0f / 128.0f;
+    std::vector<complex_t> parse( const uint8_t *buffer, uint32_t size ) const {
+        // The HackRF will stream to us IQ values of two bytes.
+        uint16_t *p = (uint16_t *)buffer;
+        size_t i, len = size / sizeof(uint16_t);
 
-        // create a lookup table for complex values
-        for( uint32_t i = 0; i <= 0xffff; ++i ) {
-            float re = ( float(i & 0xff) - 127.5f ) * scale,
-                  im = ( float(i >> 8) - 127.5f ) * scale;
-
-            _table[i] = complex_t( re, im );
+        std::vector<complex_t> values( len );
+        for( i = 0; i < len; ++i ){
+            values.push_back( _cache.lookup( p[i] ) );
         }
-    }
 
-    const complex_t& lookup( uint16_t iq ) const {
-        return _table[iq];
+        return values;
     }
 };
 

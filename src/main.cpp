@@ -38,6 +38,7 @@ struct ByteEmitter {
     static void emit( uint8_t byte ) {
         if( byte != 0xFF )
             printf( "%02x ", byte );
+
         else
             printf( ". " );
 
@@ -50,14 +51,11 @@ struct AM {
         bitstream<ByteEmitter> stream;
 
         for( std::vector<complex_t>::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i ){
-            const complex_t &IQ = *i;
+            const complex_t &c = *i;
 
-            double magnitude = std::norm(IQ);
-            if( magnitude == 0 ){
-                continue;
-            }
+            double magnitude = std::norm(c) - 1;
 
-            uint8_t bit = magnitude < 1 ? 0 : 1;
+            uint8_t bit = magnitude <= 0 ? 0 : 1;
 
             stream << bit;
         }
@@ -79,22 +77,14 @@ int main( int argc, char **argv )
     if( argc == 3 && strcmp( argv[1], "--file" ) == 0 ){
         std::cout << "Using IQ file " << argv[2] << " as input." << std::endl;
 
-        iq_lookup iqlookup;
+        iq_reader iqreader;
 
         FILE *fp = fopen( argv[2], "rb" );
         if( fp ){
             uint8_t buffer[BUF_LEN] = {0};
 
             while( !feof(fp) && fread( buffer, BUF_LEN, 1, fp ) == 1 && !stopped ){
-                unsigned short *p = (unsigned short *)&buffer;
-                size_t i, len = BUF_LEN / sizeof(unsigned short);
-
-                std::vector<complex_t> values( len );
-                for( i = 0; i < len; ++i ){
-                    values.push_back( iqlookup.lookup( p[i] ) );
-                }
-
-                AM::demodulate(values);
+                AM::demodulate( iqreader.parse( buffer, BUF_LEN ) );
             }
 
             fclose(fp);

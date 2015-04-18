@@ -38,7 +38,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "iqlookup.hpp"
+#include "iqreader.hpp"
 
 template<class DEMOD>
 class HackRFPP
@@ -65,10 +65,8 @@ protected:
 
     hackrf_device *_device;
     bool           _running;
-
-    iq_lookup _iq_lookup;
-
-    DEMOD _demodulator;
+    iq_reader      _iq_reader;
+    DEMOD          _demodulator;
 
     static int rx_callback(hackrf_transfer *transfer);
 };
@@ -157,15 +155,9 @@ int HackRFPP<DEMOD>::rx_callback(hackrf_transfer *transfer) {
     HackRFPP *hrf = (HackRFPP *)transfer->rx_ctx;
 
     if( hrf->_running ) {
-        unsigned short *p = (unsigned short *)transfer->buffer;
-        size_t i, len = transfer->valid_length / sizeof(unsigned short);
-
-        std::vector<complex_t> values( len );
-        for( i = 0; i < len; ++i ){
-            values.push_back( hrf->_iq_lookup.lookup( p[i] ) );
-        }
-
-        hrf->_demodulator.demodulate(values);
+        hrf->_demodulator.demodulate(
+            hrf->_iq_reader.parse( transfer->buffer, transfer->valid_length )
+        );
     }
 
     return 0;
