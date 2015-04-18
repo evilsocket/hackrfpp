@@ -28,6 +28,8 @@
  */
 #include <stdio.h>
 #include <signal.h>
+#include <string.h>
+
 #include <iostream>
 #include "hackrfpp.hpp"
 #include "bitstream.hpp"
@@ -54,7 +56,7 @@ struct AM {
     static void demodulate( const std::vector<complex_t>& data ) {
         bitstream<ByteEmitter> stream;
 
-        for( std::vector<complex_t>::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i ){
+        for( std::vector<complex_t>::const_iterator i = data.begin(), e = data.end(); i != e; ++i ){
             const complex_t &c = *i;
 
             // scale magnitude in the interval [-1.0, ~1.0] ( 0.984406 )
