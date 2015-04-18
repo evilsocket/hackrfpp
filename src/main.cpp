@@ -32,7 +32,11 @@
 #include "hackrfpp.hpp"
 #include "bitstream.hpp"
 
-#define BUF_LEN (16 * 32 * 512)
+#define BUF_LEN     ( 16 * 32 * 512 )
+#define FREQUENCY   ( 13.56 * 1e6 )
+#define SAMPLE_RATE ( 8 * 1e6 )
+//  ~106 kbit/s - http://jpkc.szpt.edu.cn/2007/sznk/UploadFile/biaozhun/iso14443/14443-2.pdf
+#define BITRATE     ( FREQUENCY / 128.f )
 
 struct ByteEmitter {
     static void emit( uint8_t byte ) {
@@ -53,8 +57,10 @@ struct AM {
         for( std::vector<complex_t>::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i ){
             const complex_t &c = *i;
 
+            // scale magnitude in the interval [-1.0, ~1.0] ( 0.984406 )
             double magnitude = std::norm(c) - 1;
 
+            // This is WRONG! Still need to figure out how to get bits out of this.
             uint8_t bit = magnitude <= 0 ? 0 : 1;
 
             stream << bit;
@@ -103,8 +109,8 @@ int main( int argc, char **argv )
 
             dev.open();
 
-            dev.set_frequency( 13.56 * 1e6 );
-            dev.set_sample_rate( 8 * 1e6 );
+            dev.set_frequency( FREQUENCY );
+            dev.set_sample_rate( SAMPLE_RATE );
             dev.set_amp_enabled( false );
             dev.set_lna_gain( 32 );
             dev.set_vga_gain( 30 );
