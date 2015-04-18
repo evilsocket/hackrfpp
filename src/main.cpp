@@ -31,6 +31,8 @@
 #include <string.h>
 
 #include <iostream>
+
+#include "ask.hpp"
 #include "hackrfpp.hpp"
 #include "bitstream.hpp"
 
@@ -42,19 +44,17 @@
 
 struct ByteEmitter {
     static void emit( uint8_t byte ) {
-        if( byte != 0xFF )
-            printf( "%02x ", byte );
-
-        else
-            printf( ". " );
-
+        printf( "%02x ", byte );
         fflush( stdout );
     }
 };
 
+ask demod;
+
 struct AM {
     static void demodulate( const std::vector<complex_t>& data ) {
         bitstream<ByteEmitter> stream;
+        double prev_mag = 0;
 
         for( std::vector<complex_t>::const_iterator i = data.begin(), e = data.end(); i != e; ++i ){
             const complex_t &c = *i;
@@ -62,10 +62,34 @@ struct AM {
             // scale magnitude in the interval [-1.0, ~1.0] ( 0.984406 )
             double magnitude = std::norm(c) - 1;
 
-            // This is WRONG! Still need to figure out how to get bits out of this.
-            uint8_t bit = magnitude <= 0 ? 0 : 1;
+            // uint8_t cur_bit = demod.demodulate(c);
 
-            stream << bit;
+            // manchester coding, low-to-high = 0, high-to-low = 1
+            if( prev_mag < magnitude ) {
+                stream << 1;
+            }
+            else if( prev_mag > magnitude ) {
+                stream << 0;
+            }
+            else {
+                printf( "\n");
+            }
+
+            prev_mag = magnitude;
+
+            // stream << bit;
+            // unsigned int symbol = demod.demodulate(c);
+
+            // printf( "%02x ", symbol );
+            // fflush( stdout );
+
+            // scale magnitude in the interval [-1.0, ~1.0] ( 0.984406 )
+            // double magnitude = std::norm(c) - 1;
+
+            // This is WRONG! Still need to figure out how to get bits out of this.
+            // uint8_t bit = magnitude <= 0 ? 0 : 1;
+
+            // stream << bit;
         }
     }
 };
