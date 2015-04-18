@@ -30,40 +30,24 @@
 #include <signal.h>
 #include <iostream>
 #include "hackrfpp.hpp"
+#include "bitstream.hpp"
 
 #define BUF_LEN (16 * 32 * 512)
 
-class bitstream {
-private:
-    uint8_t _nbit;
-    uint8_t _byte;
+struct ByteEmitter {
+    static void emit( uint8_t byte ) {
+        if( byte != 0xFF )
+            printf( "%02x ", byte );
+        else
+            printf( ". " );
 
-    void reset() {
-        _nbit = 0;
-        _byte = 0;
-    }
-
-public:
-
-    bitstream() {
-        reset();
-    }
-
-    void collect_bit( uint8_t bit ) {
-        _byte |= ( bit << _nbit );
-        ++_nbit;
-        // printf( "%d\n", _nbit );
-        if( _nbit >= 8 ) {
-            printf( "%02x ", _byte );
-            fflush(stdout);
-            reset();
-        }
+        fflush( stdout );
     }
 };
 
 struct AM {
     static void demodulate( const std::vector<complex_t>& data ) {
-        bitstream stream;
+        bitstream<ByteEmitter> stream;
 
         for( std::vector<complex_t>::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i ){
             const complex_t &IQ = *i;
@@ -74,21 +58,18 @@ struct AM {
             }
 
             uint8_t bit = magnitude < 1 ? 0 : 1;
-        
-            stream.collect_bit( bit );
 
-            // printf( "%c", magnitude < 0.8 ? '_' : '-' );
-            // fflush( stdout );
+            stream.collect_bit( bit );
         }
     }
 };
 
-HackRFPP<AM> dev;
+static bool stopped = false;
 
 void signal_handler(int dummy) {
     printf( "\n@ Received CTRL+C\n" );
 
-    dev.stop();
+    stopped = true;
 }
 
 int main( int argc, char **argv )
@@ -98,17 +79,19 @@ int main( int argc, char **argv )
     if( argc == 3 && strcmp( argv[1], "--file" ) == 0 ){
         std::cout << "Using IQ file " << argv[2] << " as input." << std::endl;
 
+        iq_lookup iqlookup;
+
         FILE *fp = fopen( argv[2], "rb" );
         if( fp ){
             uint8_t buffer[BUF_LEN] = {0};
 
-            while( !feof(fp) && fread( buffer, BUF_LEN, 1, fp ) == 1 ){
+            while( !feof(fp) && fread( buffer, BUF_LEN, 1, fp ) == 1 && !stopped ){
                 unsigned short *p = (unsigned short *)&buffer;
                 size_t i, len = BUF_LEN / sizeof(unsigned short);
 
                 std::vector<complex_t> values( len );
                 for( i = 0; i < len; ++i ){
-                    values.push_back( dev.lookup( p[i] ) );
+                    values.push_back( iqlookup.lookup( p[i] ) );
                 }
 
                 AM::demodulate(values);
@@ -126,6 +109,8 @@ int main( int argc, char **argv )
 
         try
         {
+            HackRFPP<AM> dev;
+
             dev.open();
 
             dev.set_frequency( 13.56 * 1e6 );
@@ -136,7 +121,7 @@ int main( int argc, char **argv )
 
             dev.start();
 
-            while( dev.is_streaming() ) {
+            while( stopped == false && dev.is_streaming() ) {
                 usleep(100);
             }
         }

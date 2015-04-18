@@ -37,9 +37,8 @@
 
 #include <stdexcept>
 #include <vector>
-#include <complex>
 
-typedef std::complex<float> complex_t;
+#include "iqlookup.hpp"
 
 template<class DEMOD>
 class HackRFPP
@@ -62,14 +61,12 @@ public:
 
     bool is_streaming() const;
 
-    const complex_t& lookup( uint16_t iq );
-
 protected:
 
     hackrf_device *_device;
     bool           _running;
 
-    std::vector<complex_t> _lookup_table;
+    iq_lookup _iq_lookup;
 
     DEMOD _demodulator;
 
@@ -83,14 +80,7 @@ protected:
 
 template<class DEMOD>
 HackRFPP<DEMOD>::HackRFPP() : _device(NULL), _running(false) {
-    // create a lookup table for complex values
-    _lookup_table.reserve( 0xffff + 1 );
-    for( uint32_t i = 0; i <= 0xffff; ++i ) {
-        _lookup_table.push_back(
-            complex_t( (float(i & 0xff) - 127.5f) * (1.0f/128.0f),
-                          (float(i >> 8) - 127.5f) * (1.0f/128.0f) )
-        );
-    }
+
 }
 
 template<class DEMOD>
@@ -163,11 +153,6 @@ HackRFPP<DEMOD>::~HackRFPP() {
 }
 
 template<class DEMOD>
-const complex_t& HackRFPP<DEMOD>::lookup( uint16_t iq ) {
-    return _lookup_table[ iq ];
-}
-
-template<class DEMOD>
 int HackRFPP<DEMOD>::rx_callback(hackrf_transfer *transfer) {
     HackRFPP *hrf = (HackRFPP *)transfer->rx_ctx;
 
@@ -177,7 +162,7 @@ int HackRFPP<DEMOD>::rx_callback(hackrf_transfer *transfer) {
 
         std::vector<complex_t> values( len );
         for( i = 0; i < len; ++i ){
-            values.push_back( hrf->lookup( p[i] ) );
+            values.push_back( hrf->_iq_lookup.lookup( p[i] ) );
         }
 
         hrf->_demodulator.demodulate(values);
