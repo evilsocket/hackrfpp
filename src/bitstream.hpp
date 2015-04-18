@@ -59,4 +59,10 @@ public:
     }
 };
 
+template<class EMITTER>
+bitstream<EMITTER>& operator<<(bitstream<EMITTER>& bs, const uint8_t& bit ) {
+    bs.collect_bit(bit);
+    return bs;
+}
+
 #endif

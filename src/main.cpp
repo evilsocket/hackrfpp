@@ -59,7 +59,7 @@ struct AM {
 
             uint8_t bit = magnitude < 1 ? 0 : 1;
 
-            stream.collect_bit( bit );
+            stream << bit;
         }
     }
 };
