@@ -29,6 +29,7 @@
 #ifndef IQLOOKUP_H
 #define IQLOOKUP_H
 
+#include <stdint.h>
 #include <complex>
 
 typedef std::complex<float> complex_t;
